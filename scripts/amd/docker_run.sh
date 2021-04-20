@@ -13,7 +13,7 @@ IMAGE_NAME=deepspeed_rocm
 CONTAINER_ID=$(drun -d -w $WORK_DIR $VOLUMES $IMAGE_NAME)
 echo "CONTAINER_ID: $CONTAINER_ID"
 docker cp . $CONTAINER_ID:$WORK_DIR
-docker exec $CONTAINER_ID bash -c "bash scripts/amd/build.sh"
+# docker exec $CONTAINER_ID bash -c "bash scripts/amd/run.sh"
 docker attach $CONTAINER_ID
 docker stop $CONTAINER_ID
 docker rm $CONTAINER_ID
