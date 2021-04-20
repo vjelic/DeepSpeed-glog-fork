@@ -1,0 +1,1 @@
+python -c "import deepspeed; print(deepspeed.__version__)"
