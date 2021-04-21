@@ -7,7 +7,7 @@ VOLUMES="-v $HOME/dockerx:/dockerx -v /data:/data" # -v $HOME/.cache:/root/.cach
 # WORK_DIR=/tmp/DeepSpeed
 WORK_DIR='/root/DeepSpeed'
 
-IMAGE_NAME=deepspeed_rocm
+IMAGE_NAME=deepspeed_rocm_base
 
 # start new container
 CONTAINER_ID=$(drun -d -w $WORK_DIR $VOLUMES $IMAGE_NAME)

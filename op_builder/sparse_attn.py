@@ -30,8 +30,12 @@ class SparseAttnBuilder(OpBuilder):
 
         # torch-cpu will not have a cuda version
         if torch.version.cuda is None:
-            cuda_compatible = False
-            self.warning(f"{self.NAME} cuda is not available from torch")
+            # check if on rocm
+            if torch.version.hip is not None:
+                cuda_compatible = True
+            else:
+                cuda_compatible = False
+                self.warning(f"{self.NAME} cuda is not available from torch")
         else:
             major, minor = torch.version.cuda.split('.')[:2]
             cuda_compatible = int(major) == 10 and int(minor) >= 1

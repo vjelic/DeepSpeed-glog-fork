@@ -2,11 +2,12 @@
 # set -o xtrace
 
 # set path
-DOCKERFILE_PATH=docker/Dockerfile.rocm
+DOCKERFILE_PATH=docker/Dockerfile.deepspeed_rocm_base
 
 # get tag
 DOCKERFILE_NAME=$(basename $DOCKERFILE_PATH)
 DOCKERIMAGE_NAME=$(echo "$DOCKERFILE_NAME" | cut -f 2- -d '.')
+echo $DOCKERIMAGE_NAME
 
 # build docker
-docker build -f $DOCKERFILE_PATH -t deepspeed_rocm .
+docker build -f $DOCKERFILE_PATH -t $DOCKERIMAGE_NAME .
