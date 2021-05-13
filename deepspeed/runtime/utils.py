@@ -118,6 +118,7 @@ class CheckOverflow(object):
     def has_overflow_serial(self, params):
         for i, p in enumerate(params):
             if p.grad is not None and self._has_inf_or_nan(p.grad.data, i):
+                print(p.name)
                 return True
         return False
 
