@@ -120,9 +120,9 @@ class CheckOverflow(object):
             if p.grad is not None and self._has_inf_or_nan(p.grad.data, i):
                 print(i, p, p.grad, p.grad.data)
                 if not torch.isfinite(p.grad).all():
-                    print((p.grad == float('nan')).nonzero(as_tuple=True))
-                    print((p.grad == float('inf')).nonzero(as_tuple=True))
-                    print((p.grad == float('-inf')).nonzero(as_tuple=True))
+                    print((p.grad == torch.tensor(float('nan'))).nonzero(as_tuple=True))
+                    print((p.grad == torch.tensor(float('inf'))).nonzero(as_tuple=True))
+                    print((p.grad == torch.tensor(float('-inf'))).nonzero(as_tuple=True))
 
                 return True
         return False
