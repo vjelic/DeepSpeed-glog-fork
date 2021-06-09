@@ -5,6 +5,9 @@ from common import distributed_test
 
 import pytest
 
+from common import skipIfRocm
+
+@skipIfRocm
 @distributed_test(world_size=3)
 def test_init():
     assert dist.is_initialized()
