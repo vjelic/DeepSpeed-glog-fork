@@ -17,11 +17,15 @@ class SimpleModel(torch.nn.Module):
 
     def forward(self, x, y):
         hidden_dim = x
-        if self.empty_grad and torch.distributed.get_rank() == 0:
-            hidden_dim = self.linear(hidden_dim) + self.linear2(hidden_dim)
-        else:
-            hidden_dim = self.linear(hidden_dim)
+        hidden_dim = self.linear(hidden_dim)
         return self.cross_entropy_loss(hidden_dim, y)
+
+
+class UnusedParametersModel(SimpleModel):
+    def __init__(self, hidden_dim, empty_grad=False):
+        super().__init__(hidden_dim, empty_grad)
+
+        self.unused_linear = torch.nn.Linear(hidden_dim, hidden_dim)
 
 
 class LinearStack(torch.nn.Module):

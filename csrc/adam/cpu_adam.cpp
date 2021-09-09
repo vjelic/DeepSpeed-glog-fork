@@ -322,42 +322,37 @@ int create_adam_optimizer(int optimizer_id,
                           float betta2 = 0.999,
                           float eps = 1e-8,
                           float weight_decay = 0,
-                          bool adamw_mode = true)
+                          bool adamw_mode = true,
+                          bool should_log = false)
 {
     auto opt =
         std::make_shared<Adam_Optimizer>(alpha, betta1, betta2, eps, weight_decay, adamw_mode);
 
     s_optimizers[optimizer_id] = opt;
+
+    if (should_log) {
+        std::string avx_type = "";
 #if defined(__AVX512__)
-    std::cout << "Adam Optimizer #" << optimizer_id
-              << " is created with AVX512 arithmetic capability." << std::endl;
-    printf("Config: alpha=%f, betas=(%f, %f), weight_decay=%f, adam_w=%d\n",
-           alpha,
-           betta1,
-           betta2,
-           weight_decay,
-           (int)adamw_mode);
+        avx_type = "AVX512";
 #else
 #if defined(__AVX256__)
-    std::cout << "Adam Optimizer #" << optimizer_id
-              << " is created with AVX2 arithmetic capability." << std::endl;
-    printf("Config: alpha=%f, betas=(%f, %f), weight_decay=%f, adam_w=%d\n",
-           alpha,
-           betta1,
-           betta2,
-           weight_decay,
-           (int)adamw_mode);
+        avx_type = "AVX2";
 #else
-    std::cout << "Adam Optimizer #" << optimizer_id
-              << " is created with scalar arithmetic capability." << std::endl;
-    printf("Config: alpha=%f, betas=(%f, %f), weight_decay=%f, adam_w=%d\n",
-           alpha,
-           betta1,
-           betta2,
-           weight_decay,
-           (int)adamw_mode);
+        avx_type = "scalar";
 #endif
 #endif
+
+        printf("Adam Optimizer #%d is created with %s arithmetic capability.\n",
+               optimizer_id,
+               avx_type.c_str());
+        printf("Config: alpha=%f, betas=(%f, %f), weight_decay=%f, adam_w=%d\n",
+               alpha,
+               betta1,
+               betta2,
+               weight_decay,
+               (int)adamw_mode);
+    }
+
     return 0;
 }
 
@@ -672,6 +667,13 @@ int ds_adam_step_plus_copy(int optimizer_id,
     return 0;
 }
 
+int destroy_adam_optimizer(int optimizer_id)
+{
+    s_optimizers.erase(optimizer_id);
+
+    return 0;
+}
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
     m.def("adam_update", &ds_adam_step, "DeepSpeed CPU Adam update (C++)");
@@ -679,4 +681,5 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
           &ds_adam_step_plus_copy,
           "DeepSpeed CPU Adam update and param copy (C++)");
     m.def("create_adam", &create_adam_optimizer, "DeepSpeed CPU Adam (C++)");
+    m.def("destroy_adam", &destroy_adam_optimizer, "DeepSpeed CPU Adam destroy (C++)");
 }

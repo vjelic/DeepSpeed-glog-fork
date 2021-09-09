@@ -8,6 +8,7 @@ Helper functions and classes from multiple sources.
 
 import os
 import psutil
+import gc
 from math import ceil
 from math import floor
 from bisect import bisect_left, bisect_right
@@ -19,6 +20,20 @@ import torch.distributed as dist
 
 from deepspeed.utils import logger
 from numpy import prod
+
+# pt-1.9 deprecations
+if hasattr(torch.cuda, "memory_reserved"):
+    torch_memory_reserved = torch.cuda.memory_reserved
+else:
+    torch_memory_reserved = torch.cuda.memory_allocated
+if hasattr(torch.cuda, "max_memory_reserved"):
+    torch_max_memory_reserved = torch.cuda.max_memory_reserved
+else:
+    torch_max_memory_reserved = torch.cuda.memory_cached
+
+
+def noop_decorator(func):
+    return func
 
 
 def ensure_directory_exists(filename):
@@ -32,6 +47,11 @@ def ensure_directory_exists(filename):
 
 
 def set_random_seed(seed):
+    """Set the random seed for common PRNGs used during training: random, numpy, and torch.
+
+    Args:
+        seed (int): the seed to use
+    """
     import numpy
     import random
     random.seed(seed)
@@ -63,10 +83,15 @@ def move_to_device(item, device):
 
 class CheckOverflow(object):
     '''Checks for overflow in gradient across parallel process'''
-    def __init__(self, param_groups=None, mpu=None, zero_reduce_scatter=False):
+    def __init__(self,
+                 param_groups=None,
+                 mpu=None,
+                 zero_reduce_scatter=False,
+                 deepspeed=None):
         self.mpu = mpu
         self.params = [] if param_groups else None
         self.zero_reduce_scatter = zero_reduce_scatter
+        self.deepspeed = deepspeed
         if param_groups:
             for group in param_groups:
                 for param in group:
@@ -124,9 +149,24 @@ class CheckOverflow(object):
                                          op=torch.distributed.ReduceOp.MAX,
                                          group=torch.distributed.group.WORLD)
         elif self.mpu is not None:
+            if self.deepspeed is not None:
+                using_pipeline = hasattr(self.deepspeed,
+                                         'pipeline_enable_backward_allreduce')
+                if (using_pipeline
+                        and self.deepspeed.pipeline_enable_backward_allreduce is False
+                    ) or (not using_pipeline
+                          and self.deepspeed.enable_backward_allreduce is False):
+                    torch.distributed.all_reduce(
+                        overflow_gpu,
+                        op=torch.distributed.ReduceOp.MAX,
+                        group=self.mpu.get_data_parallel_group())
             torch.distributed.all_reduce(overflow_gpu,
                                          op=torch.distributed.ReduceOp.MAX,
                                          group=self.mpu.get_model_parallel_group())
+        elif self.deepspeed is not None and self.deepspeed.enable_backward_allreduce is False:
+            torch.distributed.all_reduce(overflow_gpu,
+                                         op=torch.distributed.ReduceOp.MAX,
+                                         group=torch.distributed.group.WORLD)
 
         overflow = overflow_gpu[0].item()
         return bool(overflow)
@@ -551,18 +591,25 @@ def see_memory_usage(message, force=False):
     if torch.distributed.is_initialized() and not torch.distributed.get_rank() == 0:
         return
 
+    # python doesn't do real-time garbage collection so do it explicitly to get the correct RAM reports
+    gc.collect()
+
     # Print message except when distributed but not rank 0
     logger.info(message)
     logger.info(
         f"MA {round(torch.cuda.memory_allocated() / (1024 * 1024 * 1024),2 )} GB \
         Max_MA {round(torch.cuda.max_memory_allocated() / (1024 * 1024 * 1024),2)} GB \
-        CA {round(torch.cuda.memory_cached() / (1024 * 1024 * 1024),2)} GB \
-        Max_CA {round(torch.cuda.max_memory_cached() / (1024 * 1024 * 1024))} GB ")
+        CA {round(torch_memory_reserved() / (1024 * 1024 * 1024),2)} GB \
+        Max_CA {round(torch_max_memory_reserved() / (1024 * 1024 * 1024))} GB ")
 
     vm_stats = psutil.virtual_memory()
     used_GB = round(((vm_stats.total - vm_stats.available) / (1024**3)), 2)
     logger.info(
         f'CPU Virtual Memory:  used = {used_GB} GB, percent = {vm_stats.percent}%')
+
+    # get the peak memory to report correct data, so reset the counter for the next call
+    if hasattr(torch.cuda, "reset_peak_memory_stats"):  # pytorch 1.4+
+        torch.cuda.reset_peak_memory_stats()
 
 
 def call_to_str(base, *args, **kwargs):

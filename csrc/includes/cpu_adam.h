@@ -1,10 +1,13 @@
 #pragma once
 
+#if (__x86_64__ || __i386__)
 #include <cpuid.h>
+#include <x86intrin.h>
+#endif
+
 #include <cuda_fp16.h>
 #include <cuda_runtime_api.h>
 #include <stdio.h>
-#include <x86intrin.h>
 #include <cassert>
 #include "context.h"
 #include "cublas_v2.h"
@@ -20,7 +23,7 @@
         }                                                                                      \
     }
 
-#define TILE (1024 * 1024 * 1024)
+#define TILE (128 * 1024 * 1024)
 
 #if defined(__AVX512__)
 #define SIMD_STORE(a, d) _mm512_storeu_ps(a, d)
