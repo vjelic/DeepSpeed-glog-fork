@@ -1,11 +1,19 @@
 # DeepSpeed note, code taken & adapted from commit 9aa94789f13ada713af36cfd8cca2fc9a7f6b79a
 # https://github.com/ptillet/torch-blocksparse/blob/master/torch_blocksparse/matmul.py
 
+from deepspeed.ops.sparse_attention import trsrc
 import warnings
 import importlib
 import torch
+import os
 import math
-from .trsrc import softmax_fwd, softmax_bwd
+
+# from .trsrc import softmax_fwd, softmax_bwd
+from .import_triton import get_triton_src
+trsrc = get_triton_src("deepspeed/ops/sparse_attention/trsrc")
+matmul = trsrc["matmul"]
+softmax_fwd = trsrc["softmax_fwd"]
+softmax_bwd = trsrc["softmax_bwd"]
 
 fwd_kernels = dict()
 bwd_kernels = dict()
@@ -57,7 +65,7 @@ class _sparse_softmax(torch.autograd.Function):
             triton = importlib.import_module('triton')
 
         if max_k >= 32768:
-            raise NotImplementedError('Reductions larger than 32768 elements '\
+            raise NotImplementedError('Reductions larger than 32768 elements '
                                       'are not yet implemented')
         num_warps = 4 if max_k < 512 else (8 if max_k < 2048 else 16)
         pad = num_warps * 32 * 2
@@ -132,7 +140,8 @@ class _sparse_softmax(torch.autograd.Function):
             rpe = torch.empty(0, dtype=x.dtype, device=x.device)
         else:
             apply_rpe = True
-            stride_zrpe, stride_hrpe, stride_srpe = rpe.stride(0), rpe.stride(1), rpe.stride(2)
+            stride_zrpe, stride_hrpe, stride_srpe = rpe.stride(
+                0), rpe.stride(1), rpe.stride(2)
 
         # handle None key_padding_mask
         if key_padding_mask is None:
@@ -165,15 +174,16 @@ class _sparse_softmax(torch.autograd.Function):
                                              kp_mask_mode,
                                              attn_mask_mode)
         M = x.shape[0]
-        grid = lambda opt: [triton.cdiv(spdims[0] * spdims[1] * block, opt.TM), M]
+        def grid(opt): return [triton.cdiv(
+            spdims[0] * spdims[1] * block, opt.TM), M]
 
         # run kernel
-        time[0] = kernel(x.data_ptr(), scale, lut.data_ptr(), rpe.data_ptr(), key_padding_mask.data_ptr(), attn_mask.data_ptr(),\
-                         num_blocks, maxlut,\
-                         x.stride(0),\
-                         stride_zrpe, stride_hrpe,\
-                         stride_srpe,\
-                         stride_zkpm, stride_zattnm,\
+        time[0] = kernel(x.data_ptr(), scale, lut.data_ptr(), rpe.data_ptr(), key_padding_mask.data_ptr(), attn_mask.data_ptr(),
+                         num_blocks, maxlut,
+                         x.stride(0),
+                         stride_zrpe, stride_hrpe,
+                         stride_srpe,
+                         stride_zkpm, stride_zattnm,
                          grid=grid)
         # save to context
         ctx.mark_dirty(x)
@@ -211,7 +221,8 @@ class _sparse_softmax(torch.autograd.Function):
                                              ctx.kp_mask_mode,
                                              ctx.attn_mask_mode)
         M = x.shape[0]
-        grid = lambda opt: [
+
+        def grid(opt): return [
             triton.cdiv(ctx.spdims[0] * ctx.spdims[1] * ctx.block,
                         opt.TM),
             M
@@ -291,7 +302,8 @@ class Softmax:
 
         time_y = [None]
         if rpe is not None and rpe.dtype != x.dtype:
-            raise ValueError('relative position embedding must be %s' % x.dtype)
+            raise ValueError(
+                'relative position embedding must be %s' % x.dtype)
         if attn_mask is not None and attn_mask.dtype != x.dtype:
             raise ValueError('Attention mask must be %s' % x.dtype)
         if key_padding_mask is not None and key_padding_mask.dtype != x.dtype:

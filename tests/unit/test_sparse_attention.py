@@ -254,7 +254,7 @@ def _skip_on_cuda_compatability():
 @pytest.mark.parametrize("width", [256, 576])
 @pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
 def test_softmax(block, width, dtype):
-    _skip_on_cuda_compatability()
+    # _skip_on_cuda_compatability()
     Z = 2
     H = 4
     scale = 0.4
@@ -337,7 +337,7 @@ testdata = [
 
 @pytest.mark.parametrize("block, dtype, mode, trans_a, trans_b", testdata)
 def test_matmul(block, dtype, mode, trans_a, trans_b):
-    _skip_on_cuda_compatability()
+    # _skip_on_cuda_compatability()
     Z = 3
     H = 2
     M = 128

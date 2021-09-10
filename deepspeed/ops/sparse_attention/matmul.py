@@ -4,8 +4,14 @@ import importlib
 import warnings
 import torch
 import math
-from .trsrc import matmul
+# from .trsrc import matmul
 from ..op_builder import SparseAttnBuilder
+
+from .import_triton import get_triton_src
+trsrc = get_triton_src("deepspeed/ops/sparse_attention/trsrc")
+matmul = trsrc["matmul"]
+softmax_fwd = trsrc["softmax_fwd"]
+softmax_bwd = trsrc["softmax_bwd"]
 
 triton = None
 

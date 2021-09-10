@@ -1,18 +1,23 @@
-alias drun='sudo docker run -it --rm --network=host --device=/dev/kfd --device=/dev/dri --ipc=host --shm-size 16G --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined'
-alias drun_nodevice='sudo docker run -it --rm --network=host --ipc=host --shm-size 16G --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined'
+set -o xtrace
 
-VOLUMES="-v $HOME/dockerx:/dockerx -v /data:/data" # -v $HOME/.cache:/root/.cache
+alias drun='sudo docker run -it --rm --network=host --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined'
 
-# WORK_DIR=/var/lib/jenkins
-# WORK_DIR=/tmp/DeepSpeed
-WORK_DIR='/root/DeepSpeed'
+# DEVICES="--gpus all"
+DEVICES="--device=/dev/kfd --device=/dev/dri"
 
-IMAGE_NAME=deepspeed_rocm_base
+MEMORY="--ipc=host --shm-size 16G"
+
+VOLUMES="-v $HOME/dockerx:/dockerx -v /data:/data"
+
+# WORK_DIR='/root/$(basename $(pwd))'
+WORK_DIR="/dockerx/$(basename $(pwd))"
+
+IMAGE_NAME=rocm/deepspeed
 
 # start new container
-CONTAINER_ID=$(drun -d -w $WORK_DIR $VOLUMES $IMAGE_NAME)
+CONTAINER_ID=$(drun -d -w $WORK_DIR $MEMORY $VOLUMES $DEVICES $IMAGE_NAME)
 echo "CONTAINER_ID: $CONTAINER_ID"
-docker cp . $CONTAINER_ID:$WORK_DIR
+# docker cp . $CONTAINER_ID:$WORK_DIR
 # docker exec $CONTAINER_ID bash -c "bash scripts/amd/run.sh"
 docker attach $CONTAINER_ID
 docker stop $CONTAINER_ID
