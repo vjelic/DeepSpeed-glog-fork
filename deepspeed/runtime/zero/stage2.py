@@ -257,7 +257,7 @@ class FP16_DeepSpeedZeroOptimizer(object):
                 self.flatten_dense_tensors_aligned(
                     self.round_robin_fp16_groups[i],
                     self.nccl_start_alignment_factor *
-                    dist.get_world_size(group=self.dp_process_group[i])).cuda(
+                    dist.get_world_size(group=self.dp_process_group)).cuda(
                         torch.cuda.current_device()))
             see_memory_usage(f"After flattening and moving param group {i} to GPU")
 
@@ -1885,8 +1885,8 @@ class FP16_DeepSpeedZeroOptimizer(object):
             flat_merged_partitions = self.flatten_dense_tensors_aligned(
                 merged_partitions,
                 self.nccl_start_alignment_factor *
-                dist.get_world_size(group=self.dp_process_group[i]))
-            dp_partitions = self.get_data_parallel_partitions(flat_merged_partitions, i)
+                dist.get_world_size(group=self.dp_process_group))
+            dp_partitions = self.get_data_parallel_partitions(flat_merged_partitions)
             merged_single_partition_of_fp32_groups.append(dp_partitions[partition_id])
 
         for current, saved in zip(self.single_partition_of_fp32_groups, merged_single_partition_of_fp32_groups):
