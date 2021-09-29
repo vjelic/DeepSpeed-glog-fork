@@ -10,6 +10,7 @@
 import argparse
 import torch
 import glob
+import math
 import os
 from collections import OrderedDict
 
@@ -81,6 +82,12 @@ def parse_optim_states(files, ds_checkpoint_dir):
     zero_stage = state_dicts[0]['optimizer_state_dict']["zero_stage"]
     world_size = state_dicts[0]['optimizer_state_dict']["partition_count"]
     param_shapes = state_dicts[0]["param_shapes"]
+    '''For ZeRO-2 each param group can have different partiiton_count as data parallelism for expert
+    parameters can be different from data parallelism for non-expert parameters. So we can just use the max of
+    the partition_count to get the dp world_size.
+    '''
+    if type(world_size) is list:
+        world_size = max(world_size)
 
     if world_size != total_files:
         raise ValueError(
@@ -112,7 +119,7 @@ def parse_optim_states(files, ds_checkpoint_dir):
 def zero3_partitioned_param_info(unpartitioned_numel, world_size):
     remainder = unpartitioned_numel % world_size
     padding_numel = (world_size - remainder) if remainder else 0
-    partitioned_numel = int(unpartitioned_numel / world_size)
+    partitioned_numel = math.ceil(unpartitioned_numel / world_size)
     return partitioned_numel, padding_numel
 
 
@@ -205,11 +212,21 @@ def _get_fp32_state_dict_from_zero_checkpoint(ds_checkpoint_dir):
                                                  offset,
                                                  partitioned_numel)
                       for i in range(world_size)),
-                0).view(shape)
-            offset += partitioned_numel + partitioned_padding_numel
+                0).narrow(0,
+                          0,
+                          unpartitioned_numel).view(shape)
+            offset += partitioned_numel
 
     if zero_stage == 3:
         offset *= world_size
+
+    def align_to_4(x):
+        return 4 * math.ceil(x / 4)
+
+    if zero_stage == 2:
+        # Z2 started to align to 4 to improve nccl performance
+        offset = align_to_4(offset)
+        avail_numel = align_to_4(avail_numel)
 
     # Sanity check
     if offset != avail_numel:
