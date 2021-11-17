@@ -14,8 +14,10 @@ WORK_DIR="/dockerx/$(basename $(pwd))"
 
 IMAGE_NAME=rocm/deepspeed
 
+CONTAINER_NAME=deepspeed_rocm
+
 # start new container
-CONTAINER_ID=$(drun -d -w $WORK_DIR $MEMORY $VOLUMES $DEVICES $IMAGE_NAME)
+CONTAINER_ID=$(drun -d -w $WORK_DIR --name $CONTAINER_NAME $MEMORY $VOLUMES $DEVICES $IMAGE_NAME)
 echo "CONTAINER_ID: $CONTAINER_ID"
 # docker cp . $CONTAINER_ID:$WORK_DIR
 # docker exec $CONTAINER_ID bash -c "bash scripts/amd/run.sh"
