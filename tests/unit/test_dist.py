@@ -15,7 +15,7 @@ def test_init():
     assert dist.get_rank() < 3
 
 
-# Demonstration of pytest's paramaterization
+# Demonstration of pytest's parameterization
 @pytest.mark.parametrize('number,color', [(1138, 'purple')])
 @skipIfRocm("Skipped as this test fails on ROCm")
 def test_dist_args(number, color):
