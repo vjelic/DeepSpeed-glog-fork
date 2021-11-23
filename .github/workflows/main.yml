@@ -6,14 +6,14 @@ on:
       - 'master'
       - 'staging**'
     paths-ignore:
-    - 'docs/**'
+      - 'docs/**'
   pull_request:
     paths-ignore:
-    - 'docs/**'
+      - 'docs/**'
 
 jobs:
   # unit tests running on nvidia gpus
-  build:
+  nv-torch12-p40:
     runs-on: [self-hosted, nvidia, torch12]
 
     steps:
@@ -31,7 +31,7 @@ jobs:
 
       - name: Install deepspeed
         run: |
-          pip install .[dev]
+          pip install .[dev,autotuning]
           ds_report
 
       - name: Unit tests
@@ -58,7 +58,7 @@ jobs:
           python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
       - name: Install deepspeed
         run: |
-          pip install .[dev,1bit]
+          pip install .[dev,1bit,autotuning]
           ds_report
       - name: Unit tests
         run: |
@@ -85,17 +85,18 @@ jobs:
           python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
       - name: Install deepspeed
         run: |
-          pip install .[dev]
+          pip install .[dev,autotuning]
           ds_report
       - name: HF transformers tests
         run: |
           if [[ -d ./torch-extensions ]]; then rm -rf ./torch-extensions; fi
           git clone https://github.com/huggingface/transformers
-          git rev-parse --short HEAD
           cd transformers
+          # if needed switch to the last known good SHA until transformers@master is fixed
+          # git checkout 1cc453d33
+          git rev-parse --short HEAD
           # scipy/sklearn required for tests, using the 'dev' extra forces torch re-install
-          pip install scipy sklearn
           pip install .[testing]
           # find reqs used in ds integration tests
-          find examples/pytorch  -regextype posix-egrep -regex '.*(language-modeling|question-answering|summarization|text-classification|translation).*/requirements.txt' -exec pip install -r {} \;
+          find examples/pytorch  -regextype posix-egrep -regex '.*(language-modeling|question-answering|summarization|image-classification|text-classification|translation).*/requirements.txt' -exec pip install -r {} \;
           TORCH_EXTENSIONS_DIR=./torch-extensions RUN_SLOW=1 pytest --durations=0 --verbose tests/deepspeed
