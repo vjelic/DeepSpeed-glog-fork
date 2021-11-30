@@ -49,9 +49,6 @@ def fetch_requirements(path):
 
 
 install_requires = fetch_requirements('requirements/requirements.txt')
-if is_rocm_pytorch:
-    print("NOTE: Please manually install torch and torchvision packages for ROCm")
-    install_requires = fetch_requirements('requirements/requirements-rocm.txt')
 extras_require = {
     '1bit_mpi' : fetch_requirements('requirements/requirements-1bit-mpi.txt'),
     '1bit': [], # Will add proper cupy version below
