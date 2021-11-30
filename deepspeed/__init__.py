@@ -1,15 +1,19 @@
 '''
 Copyright 2020 The Microsoft DeepSpeed Team
 '''
+
 import sys
 import types
-
+from typing import Optional, Union
+import torch
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
 from packaging import version as pkg_version
 
 from . import ops
 from . import module_inject
 
-from .runtime.engine import DeepSpeedEngine
+from .runtime.engine import DeepSpeedEngine, DeepSpeedOptimizerCallable, DeepSpeedSchedulerCallable
 from .runtime.engine import ADAM_OPTIMIZER, LAMB_OPTIMIZER
 from .runtime.pipe.engine import PipelineEngine
 from .inference.engine import InferenceEngine
@@ -42,27 +46,17 @@ __version_major__, __version_minor__, __version_patch__ = _parse_version(__versi
 __git_hash__ = git_hash
 __git_branch__ = git_branch
 
-# Provide backwards compatability with old deepspeed.pt module structure, should hopefully not be used
-pt = types.ModuleType('pt', 'dummy pt module for backwards compatability')
-deepspeed = sys.modules[__name__]
-setattr(deepspeed, 'pt', pt)
-setattr(deepspeed.pt, 'deepspeed_utils', deepspeed.runtime.utils)
-sys.modules['deepspeed.pt'] = deepspeed.pt
-sys.modules['deepspeed.pt.deepspeed_utils'] = deepspeed.runtime.utils
-setattr(deepspeed.pt, 'deepspeed_config', deepspeed.runtime.config)
-sys.modules['deepspeed.pt.deepspeed_config'] = deepspeed.runtime.config
-setattr(deepspeed.pt, 'loss_scaler', deepspeed.runtime.fp16.loss_scaler)
-sys.modules['deepspeed.pt.loss_scaler'] = deepspeed.runtime.fp16.loss_scaler
-
 
 def initialize(args=None,
-               model=None,
-               optimizer=None,
-               model_parameters=None,
-               training_data=None,
-               lr_scheduler=None,
+               model: torch.nn.Module = None,
+               optimizer: Optional[Union[Optimizer,
+                                         DeepSpeedOptimizerCallable]] = None,
+               model_parameters: Optional[torch.nn.Module] = None,
+               training_data: Optional[torch.utils.data.Dataset] = None,
+               lr_scheduler: Optional[Union[_LRScheduler,
+                                            DeepSpeedSchedulerCallable]] = None,
                mpu=None,
-               dist_init_required=None,
+               dist_init_required: Optional[bool] = None,
                collate_fn=None,
                config=None,
                config_params=None):
@@ -74,16 +68,16 @@ def initialize(args=None,
 
         model: Required: nn.module class before apply any wrappers
 
-        optimizer: Optional: a user defined optimizer, this is typically used instead of defining
-            an optimizer in the DeepSpeed json config.
+        optimizer: Optional: a user defined Optimizer or Callable that returns an Optimizer object.
+            This overrides any optimizer definition in the DeepSpeed json config.
 
         model_parameters: Optional: An iterable of torch.Tensors or dicts.
             Specifies what Tensors should be optimized.
 
         training_data: Optional: Dataset of type torch.utils.data.Dataset
 
-        lr_scheduler: Optional: Learning Rate Scheduler Object. It should define a get_lr(),
-            step(), state_dict(), and load_state_dict() methods
+        lr_scheduler: Optional: Learning Rate Scheduler Object or a Callable that takes an Optimizer and returns a Scheduler object.
+            The scheduler object should define a get_lr(), step(), state_dict(), and load_state_dict() methods
 
         mpu: Optional: A model parallelism unit object that implements
             get_{model,data}_parallel_{rank,group,world_size}()
@@ -119,7 +113,6 @@ def initialize(args=None,
         __git_hash__,
         __git_branch__),
              ranks=[0])
-
     assert model is not None, "deepspeed.initialize requires a model"
 
     if not isinstance(model, PipelineModule):
@@ -232,7 +225,9 @@ def init_inference(model,
                    dtype=None,
                    injection_policy=None,
                    replace_method='auto',
-                   quantization_setting=None):
+                   quantization_setting=None,
+                   replace_with_kernel_inject=False,
+                   return_tuple=True):
     """Initialize the DeepSpeed InferenceEngine.
 
     Arguments:
@@ -262,6 +257,7 @@ def init_inference(model,
             of groups used in quantization. A tuple is passed in if we want to mention that there is extra-grouping
             for the MLP part of a Transformer layer (e.g. (True, 8) shows we quantize the model using 8 groups for
             all the network except the MLP part that we use 8 extra grouping).
+        replace_with_kernel_inject: If set we inject kernel as we initialize the inference-engine
 
     Returns:
         A deepspeed.InferenceEngine wrapped model.
@@ -281,7 +277,9 @@ def init_inference(model,
                                  checkpoint,
                                  dtype,
                                  injection_policy,
+                                 return_tuple,
                                  replace_method,
-                                 quantization_setting)
+                                 quantization_setting,
+                                 replace_with_kernel_inject)
 
     return engine
