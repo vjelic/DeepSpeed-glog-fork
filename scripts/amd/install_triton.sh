@@ -8,7 +8,7 @@ rm -rf triton
 mkdir -p triton
 git clone https://github.com/micmelesse/triton
 cd triton
-git checkout rocm_add_addition_clean
+git checkout rocm_block_sparse
 cd python
 pip3 uninstall -y triton 
 pip3 install --verbose -e .
