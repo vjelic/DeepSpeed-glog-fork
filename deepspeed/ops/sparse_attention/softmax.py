@@ -1,11 +1,9 @@
 # DeepSpeed note, code taken & adapted from commit 9aa94789f13ada713af36cfd8cca2fc9a7f6b79a
 # https://github.com/ptillet/torch-blocksparse/blob/master/torch_blocksparse/matmul.py
 
-from deepspeed.ops.sparse_attention import trsrc
 import warnings
 import importlib
 import torch
-import os
 import math
 
 import triton
@@ -197,8 +195,7 @@ class _sparse_softmax(torch.autograd.Function):
             rpe = torch.empty(0, dtype=x.dtype, device=x.device)
         else:
             apply_rpe = True
-            stride_zrpe, stride_hrpe, stride_srpe = rpe.stride(
-                0), rpe.stride(1), rpe.stride(2)
+            stride_zrpe, stride_hrpe, stride_srpe = rpe.stride(0), rpe.stride(1), rpe.stride(2)
 
         # handle None key_padding_mask
         if key_padding_mask is None:
@@ -331,8 +328,7 @@ class Softmax:
 
         time_y = [None]
         if rpe is not None and rpe.dtype != x.dtype:
-            raise ValueError(
-                'relative position embedding must be %s' % x.dtype)
+            raise ValueError('relative position embedding must be %s' % x.dtype)
         if attn_mask is not None and attn_mask.dtype != x.dtype:
             raise ValueError('Attention mask must be %s' % x.dtype)
         if key_padding_mask is not None and key_padding_mask.dtype != x.dtype:
