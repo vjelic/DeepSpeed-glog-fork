@@ -28,3 +28,23 @@ tests/unit/saved_checkpoint/
 # Dev/IDE data
 .vscode
 .theia
+
+
+# triton junk
+.vscode
+core
+build
+python/build
+*_hip*
+hip.h
+*.so
+*.egg-info/
+*.ll
+*.isa
+*.gcn
+*.ptx
+*.o
+*.hsaco
+*.ttir
+*.log
+*.s
