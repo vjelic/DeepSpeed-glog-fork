@@ -1,9 +1,9 @@
 import pytest
 import deepspeed
-from common import distributed_test
+from .common import distributed_test
 from deepspeed.git_version_info import version as ds_version
-from simple_model import SimpleModel, SimpleOptimizer, random_dataloader, args_from_dict
-from common import skipIfRocm
+from .simple_model import SimpleModel, SimpleOptimizer, random_dataloader, args_from_dict
+from .common import skipIfRocm
 
 base_ds_config = {
     "elasticity": {

@@ -28,7 +28,7 @@ __global__ void attn_softmax(float* vals,
 {
     __shared__ float partialSum[MAX_WARP_NUM];
 
-    int warp_num = blockDim.x >> 5;
+    int warp_num = blockDim.x >> WARP_SIZE_BITS;
 
     int iteration_stride = blockDim.x;
     int block_width = blockStride * seq_length;
@@ -47,7 +47,7 @@ __global__ void attn_softmax(float* vals,
                       (threadIdx.x / max_threads_in_sequence) * seq_length;
     int mask_offset = batch * seq_length;
 
-    int wid = threadIdx.x >> 5;
+    int wid = threadIdx.x >> WARP_SIZE_BITS;
     int lane = threadIdx.x & 0x1f;
 
     float4* val_cast = reinterpret_cast<float4*>(vals);
@@ -161,7 +161,7 @@ __global__ void attn_softmax(__half* vals,
 #if __CUDA_ARCH__ >= 700
     __shared__ float partialSum[MAX_WARP_NUM];
 
-    int warp_num = blockDim.x >> 5;
+    int warp_num = blockDim.x >> WARP_SIZE_BITS;
 
     int iteration_stride = blockDim.x;
     int block_width = blockStride * seq_length;
@@ -180,7 +180,7 @@ __global__ void attn_softmax(__half* vals,
                       (threadIdx.x / max_threads_in_sequence) * seq_length;
     int mask_offset = batch * seq_length;
 
-    int wid = threadIdx.x >> 5;
+    int wid = threadIdx.x >> WARP_SIZE_BITS;
     int lane = threadIdx.x & 0x1f;
 
     float2* val_cast = reinterpret_cast<float2*>(vals);
@@ -443,7 +443,7 @@ __global__ void softmax_backward_kernel(T* out_grad, const T* soft_inp, int seq_
 {
     __shared__ float partialSum[MAX_WARP_NUM];
 
-    int warp_num = blockDim.x >> 5;  // warp-count = num_threads / WARP_SIZE (32)
+    int warp_num = blockDim.x >> WARP_SIZE_BITS;  // warp-count = num_threads / WARP_SIZE (32)
 
     int iteration_stride = blockDim.x;
     int block_width = blockStride * seq_length;
@@ -460,7 +460,7 @@ __global__ void softmax_backward_kernel(T* out_grad, const T* soft_inp, int seq_
     int row = blockIdx.x;
     int id = threadIdx.x;
 
-    int wid = id >> 5;
+    int wid = id >> WARP_SIZE_BITS;
     int lane = id & 0x1f;
 
     T val_reg[MAX_THREAD_ITERATIONS];
@@ -531,8 +531,9 @@ __global__ void softmax_backward_kernel_v2(T* grad /* input & output*/,
 
     cg::thread_block b = cg::this_thread_block();
     //cg::thread_block_tile<WARP_SIZE> g = cg::tiled_partition<WARP_SIZE>(b);
-    cg::thread_group g(cg::internal::cg_coalesced_tile, WARP_SIZE);
-    g.tiled_partition(b, WARP_SIZE);
+    cg::thread_group g(cg::internal::cg_coalesced_tile, tbSize);
+    g.tiled_partition(b, tbSize);
+
 
     for (int i = 1; i < WARP_SIZE; i <<= 1) sum += g.shfl_xor(sum, i);
 

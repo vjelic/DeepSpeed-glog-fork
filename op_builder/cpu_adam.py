@@ -4,19 +4,15 @@ Copyright 2020 The Microsoft DeepSpeed Team
 import os
 import sys
 import subprocess
-from .builder import CUDAOpBuilder, is_rocm_pytorch
+from .builder import TorchCPUOpBuilder, is_rocm_pytorch
 
 
-class CPUAdamBuilder(CUDAOpBuilder):
+class CPUAdamBuilder(TorchCPUOpBuilder):
     BUILD_VAR = "DS_BUILD_CPU_ADAM"
     NAME = "cpu_adam"
 
     def __init__(self):
         super().__init__(name=self.NAME)
-
-    def is_compatible(self):
-        # Disable on Windows.
-        return sys.platform != "win32"
 
     def absolute_name(self):
         return f'deepspeed.ops.adam.{self.NAME}_op'
@@ -26,6 +22,7 @@ class CPUAdamBuilder(CUDAOpBuilder):
 
     def include_paths(self):
         import torch
+<<<<<<< HEAD
         if not is_rocm_pytorch:
             CUDA_INCLUDE = [os.path.join(torch.utils.cpp_extension.CUDA_HOME, "include")]
         else:
@@ -57,3 +54,7 @@ class CPUAdamBuilder(CUDAOpBuilder):
             '-fopenmp',
             SIMD_WIDTH,
         ]
+=======
+        CUDA_INCLUDE = os.path.join(torch.utils.cpp_extension.CUDA_HOME, "include")
+        return ['csrc/includes', CUDA_INCLUDE]
+>>>>>>> upstream/master

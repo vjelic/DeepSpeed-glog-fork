@@ -15,7 +15,6 @@ __global__ void column_sum_reduce(const T* __restrict__ inp,
     cg::thread_group g(cg::internal::cg_coalesced_tile, TILE_DIM);
     g.tiled_partition(b, TILE_DIM);
 
-
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
 
     int y_stride = width * TILE_DIM;
