@@ -6,9 +6,11 @@ set -e
 cd /tmp 
 rm -rf triton
 mkdir -p triton
-git clone https://github.com/micmelesse/triton
+git clone https://github.com/ROCmSoftwarePlatform/triton
 cd triton
-git checkout rocm_block_sparse
 cd python
+export TRITON_USE_ROCM=ON
+export MI_GPU_ARCH=gfx90a
 pip3 uninstall -y triton 
-pip3 install --verbose -e .
+pip install --verbose -e .
+pip install -U matplotlib pandas filelock
