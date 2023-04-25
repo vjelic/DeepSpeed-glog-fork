@@ -6,14 +6,13 @@ import torch
 from torch.distributed.distributed_c10d import _get_global_rank
 import torch.distributed as dist
 import math
-from torch._six import inf
 from torch.autograd import Variable
 from packaging import version as pkg_version
 
 import collections
 
 from deepspeed.runtime.fp16.loss_scaler import LossScaler, DynamicLossScaler
-from deepspeed.runtime.utils import bwc_tensor_model_parallel_rank, get_global_norm, see_memory_usage, is_model_parallel_parameter
+from deepspeed.runtime.utils import inf, bwc_tensor_model_parallel_rank, get_global_norm, see_memory_usage, is_model_parallel_parameter
 from deepspeed.runtime.zero.config import ZERO_OPTIMIZATION_GRADIENTS
 from deepspeed.runtime.zero.offload_constants import OFFLOAD_CPU_DEVICE, OFFLOAD_OPTIMIZER, OFFLOAD_OPTIMIZER_DEVICE
 from deepspeed.ops.adam import DeepSpeedCPUAdam
