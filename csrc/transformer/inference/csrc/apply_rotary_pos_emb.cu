@@ -2,6 +2,15 @@
 Copyright 2022 The Microsoft DeepSpeed Team
 */
 
+// DeepSpeed Team
+
+#include "conversion_utils.h"
+#ifdef __HIP_PLATFORM_HCC__
+#include "hip/hip_cooperative_groups.h"
+#else
+#include "cooperative_groups.h"
+#endif
+#include "ds_kernel_utils.h"
 #include "inference_cuda_layers.h"
 
 #ifndef __HIP_PLATFORM_HCC__
