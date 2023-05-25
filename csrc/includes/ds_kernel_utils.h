@@ -18,7 +18,11 @@ used throughout the codebase.
 #ifdef __HIP_PLATFORM_HCC__
 
 // constexpr variant of warpSize for templating
+#if __gfx1010__ || __gfx1011__ || __gfx1012__ || __gfx1030__ || __gfx1031__
+constexpr int hw_warp_size = 32;
+#else
 constexpr int hw_warp_size = 64;
+#endif
 #define HALF_PRECISION_AVAILABLE = 1
 #include <hip/hip_cooperative_groups.h>
 

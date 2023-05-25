@@ -16,7 +16,11 @@ constexpr int mem_vals = granularity / sizeof(int32_t);
 constexpr int max_buffer_size = (threads + 1) * mem_vals;
 
 #ifdef __HIP_PLATFORM_HCC__
+#if __gfx1010__ || __gfx1011__ || __gfx1012__ || __gfx1030__ || __gfx1031__
+constexpr int warp_size = 32;
+#else
 constexpr int warp_size = 64;
+#endif
 #else
 constexpr int warp_size = 32;
 #endif
