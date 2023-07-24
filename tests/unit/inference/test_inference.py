@@ -25,9 +25,9 @@ from deepspeed.ops.op_builder import InferenceBuilder
 if not deepspeed.ops.__compatible_ops__[InferenceBuilder.NAME]:
     pytest.skip("This op had not been implemented on this system.", allow_module_level=True)
 
-rocm_version = OpBuilder.installed_rocm_version()
-if rocm_version != (0, 0):
-    pytest.skip("skip inference tests on rocm for now", allow_module_level=True)
+#rocm_version = OpBuilder.installed_rocm_version()
+#if rocm_version != (0, 0):
+#    pytest.skip("skip inference tests on rocm for now", allow_module_level=True)
 
 _bert_models = [
     "bert-base-cased",
@@ -340,7 +340,7 @@ class TestModelTask(DistributedTest):
         assert assert_fn(bs_output, ds_output)
 
 
-@pytest.mark.seq_inference
+#@pytest.mark.seq_inference
 @pytest.mark.parametrize("model_w_task", [("EleutherAI/gpt-neo-1.3B", "text-generation"),
                                           ("EleutherAI/gpt-neox-20b", "text-generation"),
                                           ("bigscience/bloom-3b", "text-generation"),
@@ -383,7 +383,7 @@ class TestMPSize(DistributedTest):
         assert assert_fn(bs_output, ds_output)
 
 
-@pytest.mark.seq_inference
+#@pytest.mark.seq_inference
 @pytest.mark.parametrize("model_w_task", [("tiiuae/falcon-7b", "text-generation")], ids=["falcon"])
 class TestAutoTP(DistributedTest):
     world_size = 1
@@ -423,7 +423,7 @@ class TestAutoTP(DistributedTest):
         #assert assert_fn(bs_output, ds_output)
 
 
-@pytest.mark.seq_inference
+#@pytest.mark.seq_inference
 @pytest.mark.parametrize(
     "model_w_task, injection_policy",
     [
@@ -475,7 +475,7 @@ class TestInjectionPolicy(DistributedTest):
         assert assert_fn(bs_output, ds_output)
 
 
-@pytest.mark.seq_inference
+#@pytest.mark.seq_inference
 @pytest.mark.parametrize(
     "model_w_task",
     [
