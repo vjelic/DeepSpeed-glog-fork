@@ -396,7 +396,7 @@ class TestAutoTP(DistributedTest):
         assert_fn,
     ):
         # TODO: enable this test for H100 tests
-        pytest.skip("Not enough GPU memory for this on V100 runners")
+        #pytest.skip("Not enough GPU memory for this on V100 runners")
         model, task = model_w_task
         dtype = torch.bfloat16
         local_rank = int(os.getenv("LOCAL_RANK", "0"))
