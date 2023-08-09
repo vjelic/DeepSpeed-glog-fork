@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015 - 2021 Advanced Micro Devices, Inc. All rights reserved.
+Copyright (c) 2015 - 2023 Advanced Micro Devices, Inc. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,10 +32,19 @@ THE SOFTWARE.
 #define HIP_INCLUDE_HIP_AMD_DETAIL_HIP_COOPERATIVE_GROUPS_HELPER_H
 
 #if __cplusplus
+#if !defined(__HIPCC_RTC__)
 #include <hip/amd_detail/amd_device_functions.h>
-#include <bitset>
+#endif
 #if !defined(__align__)
 #define __align__(x) __attribute__((aligned(x)))
+#endif
+
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreserved-macro-identifier"
+#pragma clang diagnostic ignored "-Wc++98-compat"
+#pragma clang diagnostic ignored "-Wc++98-compat-pedantic"
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
 #endif
 
 #if !defined(__CG_QUALIFIER__)
@@ -50,12 +59,9 @@ THE SOFTWARE.
 #define _CG_STATIC_CONST_DECL_ static constexpr
 #endif
 
-#if !defined(WAVEFRONT_SIZE)
-#if __gfx1010__ || __gfx1011__ || __gfx1012__ || __gfx1030__ || __gfx1031__
-#define WAVEFRONT_SIZE 32
+#if __AMDGCN_WAVEFRONT_SIZE == 32
 using lane_mask = unsigned int;
 #else
-#define WAVEFRONT_SIZE 64
 using lane_mask = unsigned long long int;
 #endif
 
@@ -66,15 +72,11 @@ template <unsigned int size>
 using is_power_of_2 = std::integral_constant<bool, (size & (size - 1)) == 0>;
 
 template <unsigned int size>
-using is_valid_wavefront = std::integral_constant<bool, (size <= 64)>;
-// ramya
-// using is_valid_wavefront = std::integral_constant<bool, (size <= WAVEFRONT_SIZE)>;
+using is_valid_wavefront = std::integral_constant<bool, (size <= __AMDGCN_WAVEFRONT_SIZE)>;
 
 template <unsigned int size>
 using is_valid_tile_size =
-    std::integral_constant<bool, is_valid_wavefront<size>::value>;
-//ramya
-//std::integral_constant<bool, is_power_of_2<size>::value && is_valid_wavefront<size>::value>;
+    std::integral_constant<bool, is_power_of_2<size>::value && is_valid_wavefront<size>::value>;
 
 template <typename T>
 using is_valid_type =
@@ -82,7 +84,10 @@ using is_valid_type =
 
 namespace internal {
 
-/** \brief Enums representing different cooperative group types
+/**
+* @brief Enums representing different cooperative group types
+* @note  This enum is only applicable on Linux.
+*
  */
 typedef enum {
   cg_invalid,
@@ -92,92 +97,112 @@ typedef enum {
   cg_tiled_group,
   cg_coalesced_group
 } group_type;
-
 /**
- *  Functionalities related to multi-grid cooperative group type
+ *  @ingroup CooperativeG
+ *  @{
+ *  This section describes the cooperative groups functions of HIP runtime API.
+ *  
+ *  The cooperative groups provides flexible thread parallel programming algorithms, threads
+ *  cooperate and share data to perform collective computations.
+ *
+ *  @note  Cooperative groups feature is implemented on Linux, under developement
+ *  on Windows.
+ *
+ */
+/**
+ *
+ * @brief  Functionalities related to multi-grid cooperative group type
+ * @note  The following cooperative groups functions are only applicable on Linux.
+ *
  */
 namespace multi_grid {
 
-__CG_STATIC_QUALIFIER__ uint32_t num_grids() { return (uint32_t)__ockl_multi_grid_num_grids(); }
+__CG_STATIC_QUALIFIER__ uint32_t num_grids() {
+  return static_cast<uint32_t>(__ockl_multi_grid_num_grids()); }
 
-__CG_STATIC_QUALIFIER__ uint32_t grid_rank() { return (uint32_t)__ockl_multi_grid_grid_rank(); }
+__CG_STATIC_QUALIFIER__ uint32_t grid_rank() {
+  return static_cast<uint32_t>(__ockl_multi_grid_grid_rank()); }
 
-__CG_STATIC_QUALIFIER__ uint32_t size() { return (uint32_t)__ockl_multi_grid_size(); }
+__CG_STATIC_QUALIFIER__ uint32_t size() { return static_cast<uint32_t>(__ockl_multi_grid_size()); }
 
-__CG_STATIC_QUALIFIER__ uint32_t thread_rank() { return (uint32_t)__ockl_multi_grid_thread_rank(); }
+__CG_STATIC_QUALIFIER__ uint32_t thread_rank() {
+  return static_cast<uint32_t>(__ockl_multi_grid_thread_rank()); }
 
-__CG_STATIC_QUALIFIER__ bool is_valid() { return (bool)__ockl_multi_grid_is_valid(); }
+__CG_STATIC_QUALIFIER__ bool is_valid() { return static_cast<bool>(__ockl_multi_grid_is_valid()); }
 
 __CG_STATIC_QUALIFIER__ void sync() { __ockl_multi_grid_sync(); }
 
 }  // namespace multi_grid
 
 /**
- *  Functionalities related to grid cooperative group type
+ *  @brief Functionalities related to grid cooperative group type
+ *  @note  The following cooperative groups functions are only applicable on Linux.
  */
 namespace grid {
 
 __CG_STATIC_QUALIFIER__ uint32_t size() {
-  return (uint32_t)((hipBlockDim_z * hipGridDim_z) * (hipBlockDim_y * hipGridDim_y) *
-                    (hipBlockDim_x * hipGridDim_x));
+  return static_cast<uint32_t>((blockDim.z * gridDim.z) * (blockDim.y * gridDim.y) *
+                    (blockDim.x * gridDim.x));
 }
 
 __CG_STATIC_QUALIFIER__ uint32_t thread_rank() {
   // Compute global id of the workgroup to which the current thread belongs to
-  uint32_t blkIdx = (uint32_t)((hipBlockIdx_z * hipGridDim_y * hipGridDim_x) +
-                               (hipBlockIdx_y * hipGridDim_x) + (hipBlockIdx_x));
+  uint32_t blkIdx = static_cast<uint32_t>((blockIdx.z * gridDim.y * gridDim.x) +
+                               (blockIdx.y * gridDim.x) + (blockIdx.x));
 
   // Compute total number of threads being passed to reach current workgroup
   // within grid
   uint32_t num_threads_till_current_workgroup =
-      (uint32_t)(blkIdx * (hipBlockDim_x * hipBlockDim_y * hipBlockDim_z));
+      static_cast<uint32_t>(blkIdx * (blockDim.x * blockDim.y * blockDim.z));
 
   // Compute thread local rank within current workgroup
-  uint32_t local_thread_rank = (uint32_t)((hipThreadIdx_z * hipBlockDim_y * hipBlockDim_x) +
-                                          (hipThreadIdx_y * hipBlockDim_x) + (hipThreadIdx_x));
+  uint32_t local_thread_rank = static_cast<uint32_t>((threadIdx.z * blockDim.y * blockDim.x) +
+                                          (threadIdx.y * blockDim.x) + (threadIdx.x));
 
   return (num_threads_till_current_workgroup + local_thread_rank);
 }
 
-__CG_STATIC_QUALIFIER__ bool is_valid() { return (bool)__ockl_grid_is_valid(); }
+__CG_STATIC_QUALIFIER__ bool is_valid() { return static_cast<bool>(__ockl_grid_is_valid()); }
 
 __CG_STATIC_QUALIFIER__ void sync() { __ockl_grid_sync(); }
 
 }  // namespace grid
 
 /**
- *  Functionalities related to `workgroup` (thread_block in CUDA terminology)
+ *  @brief Functionalities related to `workgroup` (thread_block in CUDA terminology)
  *  cooperative group type
+ *  @note  The following cooperative groups functions are only applicable on Linux.
  */
 namespace workgroup {
 
 __CG_STATIC_QUALIFIER__ dim3 group_index() {
-  return (dim3((uint32_t)hipBlockIdx_x, (uint32_t)hipBlockIdx_y, (uint32_t)hipBlockIdx_z));
+  return (dim3(static_cast<uint32_t>(blockIdx.x), static_cast<uint32_t>(blockIdx.y),
+               static_cast<uint32_t>(blockIdx.z)));
 }
 
 __CG_STATIC_QUALIFIER__ dim3 thread_index() {
-  return (dim3((uint32_t)hipThreadIdx_x, (uint32_t)hipThreadIdx_y, (uint32_t)hipThreadIdx_z));
+  return (dim3(static_cast<uint32_t>(threadIdx.x), static_cast<uint32_t>(threadIdx.y),
+               static_cast<uint32_t>(threadIdx.z)));
 }
 
 __CG_STATIC_QUALIFIER__ uint32_t size() {
-  return ((uint32_t)(hipBlockDim_x * hipBlockDim_y * hipBlockDim_z));
+  return (static_cast<uint32_t>(blockDim.x * blockDim.y * blockDim.z));
 }
 
 __CG_STATIC_QUALIFIER__ uint32_t thread_rank() {
-  return ((uint32_t)((hipThreadIdx_z * hipBlockDim_y * hipBlockDim_x) +
-                     (hipThreadIdx_y * hipBlockDim_x) + (hipThreadIdx_x)));
+  return (static_cast<uint32_t>((threadIdx.z * blockDim.y * blockDim.x) +
+                     (threadIdx.y * blockDim.x) + (threadIdx.x)));
 }
 
 __CG_STATIC_QUALIFIER__ bool is_valid() {
-  // TODO(mahesha) any functionality need to be added here? I believe not
   return true;
 }
 
 __CG_STATIC_QUALIFIER__ void sync() { __syncthreads(); }
 
-// DeepSpeed transformer inference
 __CG_STATIC_QUALIFIER__ dim3 block_dim() {
-  return (dim3((uint32_t)hipBlockDim_x, (uint32_t)hipBlockDim_y, (uint32_t)hipBlockDim_z));
+  return (dim3(static_cast<uint32_t>(blockDim.x), static_cast<uint32_t>(blockDim.y),
+          static_cast<uint32_t>(blockDim.z)));
 }
 
 }  // namespace workgroup
@@ -198,9 +223,9 @@ __CG_STATIC_QUALIFIER__ void sync() { __builtin_amdgcn_fence(__ATOMIC_ACQ_REL, "
 //
 // For each thread, this function returns the number of active threads which
 // have i-th bit of x set and come before the current thread.
-__device__ unsigned int masked_bit_count(lane_mask x, unsigned int add = 0) {
-  int counter=0;
-    #if WAVEFRONT_SIZE == 32
+__CG_STATIC_QUALIFIER__ unsigned int masked_bit_count(lane_mask x, unsigned int add = 0) {
+  unsigned int counter=0;
+    #if __AMDGCN_WAVEFRONT_SIZE == 32
       counter = __builtin_amdgcn_mbcnt_lo(x, add);
     #else
       counter = __builtin_amdgcn_mbcnt_lo(static_cast<lane_mask>(x), add);
@@ -216,7 +241,12 @@ __device__ unsigned int masked_bit_count(lane_mask x, unsigned int add = 0) {
 }  // namespace internal
 
 }  // namespace cooperative_groups
+/**
+*  @}
+*/
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 #endif  // __cplusplus
 #endif  // HIP_INCLUDE_HIP_AMD_DETAIL_HIP_COOPERATIVE_GROUPS_HELPER_H
-#endif

@@ -31,4 +31,7 @@ class QuantizerBuilder(CUDAOpBuilder):
         return ['csrc/includes']
 
     def extra_ldflags(self):
-        return ['-lcurand']
+        if not self.is_rocm_pytorch():
+            return ['-lcurand']
+        else:
+            return []
