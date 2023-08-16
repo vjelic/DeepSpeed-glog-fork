@@ -18,7 +18,13 @@ used throughout the codebase.
 #ifdef __HIP_PLATFORM_HCC__
 
 // constexpr variant of warpSize for templating
-constexpr int hw_warp_size = 64;
+#ifdef __AMDGCN_WAVEFRONT_SIZE
+// __AMDGCN_WAVEFRONT_SIZE is only defined when compiling with hipcc.
+constexpr int hw_warp_size = __AMDGCN_WAVEFRONT_SIZE;
+#else
+// Intentionally do not define hw_warp_size for safeguard
+// constexpr int hw_warp_size = 64;
+#endif
 #define HALF_PRECISION_AVAILABLE = 1
 #include <hip/hip_cooperative_groups.h>
 
