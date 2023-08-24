@@ -1,7 +1,9 @@
-torch
-tqdm
+hjson
 ninja
 numpy
+packaging>=20.0
 psutil
-packaging
-hjson
+py-cpuinfo
+pydantic<2.0.0
+torch
+tqdm

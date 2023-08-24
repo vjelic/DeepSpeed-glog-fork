@@ -1,3 +1,8 @@
+// Copyright (c) Microsoft Corporation.
+// SPDX-License-Identifier: Apache-2.0
+
+// DeepSpeed Team
+
 #include "general_kernels.h"
 
 namespace cg = cooperative_groups;
@@ -11,10 +16,7 @@ __global__ void column_sum_reduce(const T* __restrict__ inp,
     __shared__ float tile[TILE_DIM][TILE_DIM + 1];
 
     cg::thread_block b = cg::this_thread_block();
-    //cg::thread_block_tile<TILE_DIM> g = cg::tiled_partition<TILE_DIM>(b);
-    cg::thread_group g(cg::internal::cg_coalesced_tile, TILE_DIM);
-    g.tiled_partition(b, TILE_DIM);
-
+    cg::thread_block_tile<TILE_DIM> g = cg::tiled_partition<TILE_DIM>(b);
 
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
 

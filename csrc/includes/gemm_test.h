@@ -1,3 +1,7 @@
+// Copyright (c) Microsoft Corporation.
+// SPDX-License-Identifier: Apache-2.0
+
+// DeepSpeed Team
 
 #pragma once
 
@@ -115,8 +119,7 @@ public:
         int fast_algo = 0;
 
 #ifdef __HIP_PLATFORM_HCC__
-        for (int algo = (int)rocblas_gemm_algo_standard;
-             algo <= (int)rocblas_gemm_algo_standard;
+        for (int algo = (int)rocblas_gemm_algo_standard; algo <= (int)rocblas_gemm_algo_standard;
 #else
         for (int algo = (int)CUBLAS_GEMM_DEFAULT_TENSOR_OP;
              algo <= (int)CUBLAS_GEMM_ALGO15_TENSOR_OP;
@@ -287,8 +290,7 @@ public:
         int fast_algo = 0;
 
 #ifdef __HIP_PLATFORM_HCC__
-        for (int algo = (int)rocblas_gemm_algo_standard;
-             algo <= (int)rocblas_gemm_algo_standard;
+        for (int algo = (int)rocblas_gemm_algo_standard; algo <= (int)rocblas_gemm_algo_standard;
 #else
         for (int algo = (int)CUBLAS_GEMM_DEFAULT_TENSOR_OP;
              algo <= (int)CUBLAS_GEMM_ALGO15_TENSOR_OP;
