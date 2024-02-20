@@ -180,7 +180,33 @@ int cublas_gemm_ex(cublasHandle_t handle,
                                             0,
                                             0);
 #else
-#ifdef __HIP_PLATFORM_AMD__
+    //constexpr auto rocblas_dtype_16 = std::is_same<T, __half>::value ? rocblas_datatype_f16_r
+    //                                                                 : rocblas_datatype_bf16_r;
+    rocblas_status status = rocblas_gemm_ex3(handle,
+                                            transa,
+                                            transb,
+                                            m,
+                                            n,
+                                            k,
+                                            (const void*)alpha,
+                                            (const void*)A,
+                                            rocblas_datatype_f16_r,
+                                            (transa == rocblas_operation_none) ? m : k,
+                                            (const void*)B,
+                                            rocblas_datatype_f16_r,
+                                            ldb,
+                                            (const void*)beta,
+                                            (void*)C,
+                                            rocblas_datatype_f16_r,
+                                            m,
+                                            (void*)C,
+                                            rocblas_datatype_f16_r,
+                                            m,
+                                            rocblas_compute_type_f8_f8_f32,
+                                            algo,
+                                            0,
+                                            0);
+/*#ifdef __HIP_PLATFORM_AMD__
     constexpr auto cublas_dtype_16 = std::is_same<T, __half>::value ? HIPBLAS_R_16F : HIPBLAS_R_16B;
 #else
     constexpr auto cublas_dtype_16 = std::is_same<T, __half>::value ? CUDA_R_16F : CUDA_R_16BF;
@@ -207,7 +233,7 @@ int cublas_gemm_ex(cublasHandle_t handle,
 #else
                                          HIPBLAS_R_32F,
 #endif
-                                         algo);
+                                         algo);*/
 #endif
 
 #if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
