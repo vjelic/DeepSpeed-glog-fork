@@ -18,7 +18,7 @@
 #endif
 #include <stdio.h>
 
-#ifdef __HIP_PLATFORM_AMD__
+#if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
 int cublas_gemm_ex(rocblas_handle handle,
                    rocblas_operation transa,
                    rocblas_operation transb,
@@ -44,12 +44,12 @@ int cublas_gemm_ex(cublasHandle_t handle,
                    const float* A,
                    const float* B,
                    float* C,
-                   cublasGemmAlgo_t algo,
+                   hipblasGemmAlgo_t algo,
                    int b_stride = -1)
 #endif
 {
     const int ldb = (b_stride == -1) ? ((transb == CUBLAS_OP_N) ? k : n) : b_stride;
-#ifdef __HIP_PLATFORM_AMD__
+#if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
     rocblas_status status = rocblas_gemm_ex(handle,
                                             transa,
                                             transb,
@@ -83,20 +83,28 @@ int cublas_gemm_ex(cublasHandle_t handle,
                                          k,
                                          (const void*)alpha,
                                          (const void*)A,
+#ifdef __HIP_PLATFORM_AMD__ 
+					 HIPBLAS_R_32F,
+#else 
                                          CUDA_R_32F,
+#endif
                                          (transa == CUBLAS_OP_N) ? m : k,
                                          (const void*)B,
-                                         CUDA_R_32F,
+                                         HIPBLAS_R_32F,
                                          ldb,
                                          (const void*)beta,
                                          C,
-                                         CUDA_R_32F,
+                                         HIPBLAS_R_32F,
                                          m,
-                                         CUDA_R_32F,
+#ifdef HIPBLAS_V2
+					 HIPBLAS_COMPUTE_32F,
+#else
+                                         HIPBLAS_R_32F,
+#endif
                                          algo);
 #endif
 
-#ifdef __HIP_PLATFORM_AMD__
+#if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
     if (status != rocblas_status_success) {
 #else
     if (status != CUBLAS_STATUS_SUCCESS) {
@@ -113,7 +121,7 @@ int cublas_gemm_ex(cublasHandle_t handle,
 }
 
 template <typename T>
-#ifdef __HIP_PLATFORM_AMD__
+#if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
 int cublas_gemm_ex(rocblas_handle handle,
                    rocblas_operation transa,
                    rocblas_operation transb,
@@ -139,12 +147,12 @@ int cublas_gemm_ex(cublasHandle_t handle,
                    const T* A,
                    const T* B,
                    T* C,
-                   cublasGemmAlgo_t algo,
+                   hipblasGemmAlgo_t algo,
                    int b_stride = -1)
 #endif
 {
     const int ldb = (b_stride == -1) ? ((transb == CUBLAS_OP_N) ? k : n) : b_stride;
-#ifdef __HIP_PLATFORM_AMD__
+#if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
     constexpr auto rocblas_dtype_16 = std::is_same<T, __half>::value ? rocblas_datatype_f16_r
                                                                      : rocblas_datatype_bf16_r;
     rocblas_status status = rocblas_gemm_ex(handle,
@@ -172,7 +180,11 @@ int cublas_gemm_ex(cublasHandle_t handle,
                                             0,
                                             0);
 #else
+#ifdef __HIP_PLATFORM_AMD__
+    constexpr auto cublas_dtype_16 = std::is_same<T, __half>::value ? HIPBLAS_R_16F : HIPBLAS_R_16B;
+#else
     constexpr auto cublas_dtype_16 = std::is_same<T, __half>::value ? CUDA_R_16F : CUDA_R_16BF;
+#endif
     cublasStatus_t status = cublasGemmEx(handle,
                                          transa,
                                          transb,
@@ -190,11 +202,15 @@ int cublas_gemm_ex(cublasHandle_t handle,
                                          (void*)C,
                                          cublas_dtype_16,
                                          m,
-                                         CUDA_R_32F,
+#ifdef HIPBLAS_V2
+                                         HIPBLAS_COMPUTE_32F,
+#else
+                                         HIPBLAS_R_32F,
+#endif
                                          algo);
 #endif
 
-#ifdef __HIP_PLATFORM_AMD__
+#if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
     if (status != rocblas_status_success) {
 #else
     if (status != CUBLAS_STATUS_SUCCESS) {
@@ -210,7 +226,7 @@ int cublas_gemm_ex(cublasHandle_t handle,
     return 0;
 }
 
-#ifdef __HIP_PLATFORM_AMD__
+#if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
 int cublas_strided_batched_gemm(rocblas_handle handle,
                                 int m,
                                 int n,
@@ -243,10 +259,10 @@ int cublas_strided_batched_gemm(cublasHandle_t handle,
                                 int stride_B,
                                 int stride_C,
                                 int batch,
-                                cublasGemmAlgo_t algo)
+                                hipblasGemmAlgo_t algo)
 #endif
 {
-#ifdef __HIP_PLATFORM_AMD__
+#if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
     rocblas_status status =
         rocblas_gemm_strided_batched_ex(handle,
                                         op_A,
@@ -286,24 +302,28 @@ int cublas_strided_batched_gemm(cublasHandle_t handle,
                                                        k,
                                                        alpha,
                                                        A,
-                                                       CUDA_R_32F,
+                                                       HIPBLAS_R_32F,
                                                        (op_A == CUBLAS_OP_N) ? m : k,
                                                        stride_A,
                                                        B,
-                                                       CUDA_R_32F,
+                                                       HIPBLAS_R_32F,
                                                        (op_B == CUBLAS_OP_N) ? k : n,
                                                        stride_B,
                                                        beta,
                                                        C,
-                                                       CUDA_R_32F,
+                                                       HIPBLAS_R_32F,
                                                        m,
                                                        stride_C,
                                                        batch,
-                                                       CUDA_R_32F,
+#ifdef HIPBLAS_V2
+                                                       HIPBLAS_COMPUTE_32F,
+#else
+                                                       HIPBLAS_R_32F,
+#endif
                                                        algo);
 #endif
 
-#ifdef __HIP_PLATFORM_AMD__
+#if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
     if (status != rocblas_status_success) {
 #else
     if (status != CUBLAS_STATUS_SUCCESS) {
@@ -321,7 +341,7 @@ int cublas_strided_batched_gemm(cublasHandle_t handle,
 }
 
 template <typename T>
-#ifdef __HIP_PLATFORM_AMD__
+#if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
 int cublas_strided_batched_gemm(rocblas_handle handle,
                                 int m,
                                 int n,
@@ -354,10 +374,10 @@ int cublas_strided_batched_gemm(cublasHandle_t handle,
                                 int stride_B,
                                 int stride_C,
                                 int batch,
-                                cublasGemmAlgo_t algo)
+                                hipblasGemmAlgo_t algo)
 #endif
 {
-#ifdef __HIP_PLATFORM_AMD__
+#if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
     constexpr auto rocblas_dtype_16 = std::is_same<T, __half>::value ? rocblas_datatype_f16_r
                                                                      : rocblas_datatype_bf16_r;
     rocblas_status status =
@@ -391,7 +411,11 @@ int cublas_strided_batched_gemm(cublasHandle_t handle,
                                         0,
                                         0);
 #else
+#ifdef __HIP_PLATFORM_AMD__
+    constexpr auto cublas_dtype_16 = std::is_same<T, __half>::value ? HIPBLAS_R_16F : HIPBLAS_R_16B;
+#else
     constexpr auto cublas_dtype_16 = std::is_same<T, __half>::value ? CUDA_R_16F : CUDA_R_16BF;
+#endif
     cublasStatus_t status = cublasGemmStridedBatchedEx(handle,
                                                        op_A,
                                                        op_B,
@@ -413,11 +437,15 @@ int cublas_strided_batched_gemm(cublasHandle_t handle,
                                                        m,
                                                        stride_C,
                                                        batch,
-                                                       CUDA_R_32F,
+#ifdef HIPBLAS_V2
+                                                       HIPBLAS_COMPUTE_32F,
+#else
+                                                       HIPBLAS_R_32F,
+#endif
                                                        algo);
 #endif
 
-#ifdef __HIP_PLATFORM_AMD__
+#if defined(__HIP_PLATFORM_AMD__) && TORCH_VERSION_MAJOR <= 2 && TORCH_VERSION_MINOR <=0
     if (status != rocblas_status_success) {
 #else
     if (status != CUBLAS_STATUS_SUCCESS) {
