@@ -1,4 +1,4 @@
-This branch points at upstream DeepSpeed v0.13.0
+This branch points at upstream DeepSpeed v0.14.2
 
 [![License Apache 2.0](https://badgen.net/badge/license/apache2.0/blue)](https://github.com/Microsoft/DeepSpeed/blob/master/LICENSE)
 [![PyPI version](https://badge.fury.io/py/deepspeed.svg)](https://pypi.org/project/deepspeed/)
