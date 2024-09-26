@@ -99,14 +99,6 @@ __global__ void apply_rotary_pos_half(T* mixed_query,
                                                                                   rope_theta,  \
                                                                                   max_out_tokens);
 
-#if defined(__HIP_PLATFORM_AMD__) and ROCM_WAVEFRONT_SIZE == 64
-#define LAUNCH_FOR_ALIGNMENT(ALIGNMENT)         \
-    if (threads_per_head == 64) {               \
-        LAUNCH_ROT_POS_EMB_HALF(64, ALIGNMENT); \
-    } else {                                    \
-        assert(false);                          \
-    }
-#else
 #define LAUNCH_FOR_ALIGNMENT(ALIGNMENT)         \
     if (threads_per_head == 4) {                \
         LAUNCH_ROT_POS_EMB_HALF(4, ALIGNMENT);  \
@@ -116,10 +108,11 @@ __global__ void apply_rotary_pos_half(T* mixed_query,
         LAUNCH_ROT_POS_EMB_HALF(16, ALIGNMENT); \
     } else if (threads_per_head == 32) {        \
         LAUNCH_ROT_POS_EMB_HALF(32, ALIGNMENT); \
+    } else if (threads_per_head == 64) {        \
+        LAUNCH_ROT_POS_EMB_HALF(64, ALIGNMENT); \
     } else {                                    \
         assert(false);                          \
     }
-#endif
 
 template <typename T>
 void launch_apply_rotary_pos_emb(T* mixed_query,
@@ -152,7 +145,7 @@ void launch_apply_rotary_pos_emb(T* mixed_query,
 
     const int padded_head_size = next_pow2(head_size);
 
-    assert(padded_head_size <= hw_warp_size * T_per_elem);
+    assert(padded_head_size <= hw_warp_size_host * T_per_elem);
 
     const int threads_per_head = padded_head_size / T_per_elem;
     const int heads_per_block = rot_half::threads / threads_per_head;

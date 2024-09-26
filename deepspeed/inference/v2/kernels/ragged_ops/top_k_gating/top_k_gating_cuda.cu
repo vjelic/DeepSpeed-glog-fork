@@ -99,7 +99,7 @@ void launch_top_k_gating(int32_t* expert_counts,
                          cudaStream_t stream)
 {
     const dim3 grid(n_tokens);
-    const dim3 block(((n_experts + hw_warp_size - 1) / hw_warp_size) * hw_warp_size);
+    const dim3 block(((n_experts + hw_warp_size_host - 1) / hw_warp_size_host) * hw_warp_size_host);
 
     TOP_K_SWITCH(n_top_k, [&] {
         top_k_gating_kernel<T, CONST_TOP_K><<<grid, block, 0, stream>>>(

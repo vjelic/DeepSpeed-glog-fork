@@ -28,7 +28,6 @@ constexpr int access_granularity = 16;
 constexpr int quanitzed_access_granularity = 4;
 constexpr int quanitzed_access_granularity_6bits = 2;
 constexpr int threads = 256;
-constexpr int warps = threads / 32;
 
 }  // namespace quantization
 
@@ -74,7 +73,7 @@ __global__ void apply_quantization(T* val,
     int tidx = threadIdx.x;
     int wid = tidx >> 5;
     int lane = tidx & 0x1f;
-    int gid = blockIdx.x * quantization::warps + wid;
+    int gid = blockIdx.x * (quantization::threads/hw_warp_size) + wid;
 
     constexpr int q_exponent_bits = total_q_bits - q_mantisa_bits - 1;
     constexpr uint32_t _mantisa_mask = (1 << _mantisa_bits) - 1;
@@ -342,12 +341,13 @@ void launch_quantization(T* val,
                          int q_mantisa_bits,
                          int stochastic_rounding)
 {
-    const dim3 grid((num_groups + quantization::warps - 1) / quantization::warps);
+    const int warps = quantization::threads/hw_warp_size_host;
+    const dim3 grid((num_groups + warps - 1) / warps);
     const dim3 block(quantization::threads);
 
     std::pair<uint64_t, uint64_t> seed = FPContext::Instance().IncrementOffset(16);
 
-    constexpr int vals_per_unroll = hw_warp_size * quantization::access_granularity / sizeof(T);
+    const int vals_per_unroll = hw_warp_size_host * quantization::access_granularity / sizeof(T);
 
     const int copy_unroll = (group_size + vals_per_unroll - 1) / vals_per_unroll;
     QUANT_SWITCH((q_bits - q_mantisa_bits - 1) * q_mantisa_bits + stochastic_rounding, [&] {

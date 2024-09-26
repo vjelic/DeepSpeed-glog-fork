@@ -22,8 +22,17 @@ used throughout the codebase.
 
 #ifdef __HIP_PLATFORM_AMD__
 
+inline int warpSizeDynamic() {
+  hipDeviceProp_t deviceProp;
+  auto result = hipGetDeviceProperties(&deviceProp, 0);
+  assert(result == HIP_SUCCESS);
+  return deviceProp.warpSize;
+}
+
 // constexpr variant of warpSize for templating
-constexpr int hw_warp_size = ROCM_WAVEFRONT_SIZE;
+constexpr int hw_warp_size = warpSize;
+inline int hw_warp_size_host = warpSizeDynamic();
+
 #define HALF_PRECISION_AVAILABLE = 1
 #include <hip/hip_cooperative_groups.h>
 #include <hip/hip_fp16.h>
@@ -32,6 +41,7 @@ constexpr int hw_warp_size = ROCM_WAVEFRONT_SIZE;
 
 // constexpr variant of warpSize for templating
 constexpr int hw_warp_size = 32;
+constexpr int hw_warp_size_host = 32;
 
 #if __CUDA_ARCH__ >= 530
 #define HALF_PRECISION_AVAILABLE = 1

@@ -447,7 +447,7 @@ void launch_attn_softmax_v2(T* vals,
     // Each block should be partitioned into as many `reduce_width` blocks
     // as can be fit.
     constexpr int attn_threads = 256;
-    constexpr int min_reduce_width = hw_warp_size;
+    const int min_reduce_width = hw_warp_size_host;
     constexpr int internal_unroll = 4;
 
     // Handle internal unroll then round to next power of 2. Bump up to minimum granularity.

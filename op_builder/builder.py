@@ -261,25 +261,6 @@ class OpBuilder(ABC):
         OpBuilder._rocm_gpu_arch = rocm_gpu_arch
         return OpBuilder._rocm_gpu_arch
 
-    @staticmethod
-    def get_rocm_wavefront_size():
-        if OpBuilder._rocm_wavefront_size:
-            return OpBuilder._rocm_wavefront_size
-
-        rocm_info = Path("/opt/rocm/bin/rocminfo")
-        if (not rocm_info.is_file()):
-            rocm_info = Path("rocminfo")
-        rocm_wavefront_size_cmd = str(
-            rocm_info) + " | grep -Eo -m1 'Wavefront Size:[[:space:]]+[0-9]+' | grep -Eo '[0-9]+'"
-        try:
-            safe_cmd = shlex.split(rocm_wavefront_size_cmd)
-            result = subprocess.check_output(rocm_wavefront_size_cmd)
-            rocm_wavefront_size = result.decode('utf-8').strip()
-        except subprocess.CalledProcessError:
-            rocm_wavefront_size = "32"
-        OpBuilder._rocm_wavefront_size = rocm_wavefront_size
-        return OpBuilder._rocm_wavefront_size
-
     def include_paths(self):
         '''
         Returns list of include paths, relative to root of deepspeed package (i.e., DeepSpeed/deepspeed)
@@ -575,7 +556,6 @@ class OpBuilder(ABC):
         if self.is_rocm_pytorch():
             cxx_args.append("-D__HIP_PLATFORM_AMD__=1")
             os.environ["PYTORCH_ROCM_ARCH"] = self.get_rocm_gpu_arch()
-            cxx_args.append('-DROCM_WAVEFRONT_SIZE=%s' % self.get_rocm_wavefront_size())
 
         op_module = load(name=self.name,
                          sources=self.strip_empty_entries(sources),
@@ -707,10 +687,6 @@ class CUDAOpBuilder(OpBuilder):
 
         if self.is_rocm_pytorch():
             compile_args['cxx'].append("-D__HIP_PLATFORM_AMD__=1")
-            #cxx compiler args are required to compile cpp files
-            compile_args['cxx'].append('-DROCM_WAVEFRONT_SIZE=%s' % self.get_rocm_wavefront_size())
-            #nvcc compiler args are required to compile hip files
-            compile_args['nvcc'].append('-DROCM_WAVEFRONT_SIZE=%s' % self.get_rocm_wavefront_size())
             if self.get_rocm_gpu_arch():
                 os.environ["PYTORCH_ROCM_ARCH"] = self.get_rocm_gpu_arch()
 
