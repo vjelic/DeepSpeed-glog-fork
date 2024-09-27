@@ -8,7 +8,7 @@ import torch
 import pytest
 from deepspeed.accelerator import get_accelerator
 from deepspeed.ops.op_builder import InferenceBuilder
-from .inference_test_utils import allclose, get_dtypes
+from .inference_test_utils import allclose, get_dtypes, assert_almost_equal
 try:
     import triton  # noqa: F401 # type: ignore
     from deepspeed.ops.transformer.inference.triton import (
@@ -175,19 +175,20 @@ def test_layer_norm_residual_store_pre_ln_res(batch, seq_len, channels, dtype):
 def test_triton_layer_norm(M, N, dtype, residual, input_bias, eps=1e-5, device='cuda'):
     if not deepspeed.HAS_TRITON:
         pytest.skip("triton has to be installed for the test")
+    dev = get_accelerator().device_name()
     torch.manual_seed(0)
     # create data
     x_shape = (M, N)
     w_shape = (x_shape[-1], )
-    weight = torch.rand(w_shape, dtype=dtype, device='cuda', requires_grad=False)
-    bias = torch.rand(w_shape, dtype=dtype, device='cuda', requires_grad=False)
-    x_bias = torch.rand(w_shape, dtype=dtype, device='cuda', requires_grad=False)
-    x = -2.3 + 0.5 * torch.randn(x_shape, dtype=dtype, device='cuda')
+    weight = torch.rand(w_shape, dtype=dtype, device=dev, requires_grad=False)
+    bias = torch.rand(w_shape, dtype=dtype, device=dev, requires_grad=False)
+    x_bias = torch.rand(w_shape, dtype=dtype, device=dev, requires_grad=False)
+    x = -2.3 + 0.5 * torch.randn(x_shape, dtype=dtype, device=dev)
     dy = .1 * torch.randn_like(x)
     if residual:
-        res = torch.rand(x_shape, dtype=dtype, device='cuda', requires_grad=False)
+        res = torch.rand(x_shape, dtype=dtype, device=dev, requires_grad=False)
     else:
-        res = torch.zeros(x_shape, dtype=dtype, device='cuda', requires_grad=False)
+        res = torch.zeros(x_shape, dtype=dtype, device=dev, requires_grad=False)
     x.requires_grad_(True)
     # forward pass
     if residual or input_bias:
@@ -197,5 +198,4 @@ def test_triton_layer_norm(M, N, dtype, residual, input_bias, eps=1e-5, device='
     y_ref = torch.nn.functional.layer_norm(x + res + (x_bias if input_bias else 0), w_shape, weight, bias,
                                            eps).to(dtype)
     # compare
-    #print(f"y_tri={y_tri}, y_ref={y_ref}")
-    triton.testing.assert_almost_equal(y_tri, y_ref)
+    assert_almost_equal(y_tri, y_ref)

@@ -15,6 +15,7 @@ from deepspeed.accelerator import get_accelerator
 from deepspeed.utils import logger
 from deepspeed.moe.layer import MoE
 from deepspeed.utils.timer import FORWARD_GLOBAL_TIMER, BACKWARD_GLOBAL_TIMER, STEP_GLOBAL_TIMER
+from deepspeed.utils.torch import required_torch_version
 
 Tensor = torch.Tensor
 
@@ -722,9 +723,9 @@ def _upsample_flops_compute(*args, **kwargs):
 
     flops = input.numel()
     if isinstance(scale_factor, tuple) and len(scale_factor) == len(input):
-        flops * int(_prod(scale_factor))
+        flops *= int(_prod(scale_factor))
     else:
-        flops * scale_factor**len(input)
+        flops *= scale_factor**len(input)
     return flops, 0
 
 
@@ -827,6 +828,15 @@ def _elementwise_flops_compute(input, other):
         return flops, 0
 
 
+def _attn_flops_compute(q, k, v, *args, **kwargs):
+    """
+    Count flops for the scaled_dot_product_attention operation.
+    """
+    macs = _prod(q.shape) * k.shape[-2]
+    macs += _prod(q.shape[:-1]) * k.shape[-2] * v.shape[-1]
+    return 2 * macs, macs
+
+
 def wrapFunc(func, funcFlopCompute):
     oldFunc = func
     name = func.__str__
@@ -899,10 +909,15 @@ def _patch_functionals():
     # embedding
     F.embedding = wrapFunc(F.embedding, _embedding_flops_compute)
 
+    # attn - scaled_dot_product_attention added in torch 2.0+
+    if required_torch_version(min_version=2.0):
+        F.scaled_dot_product_attention = wrapFunc(F.scaled_dot_product_attention, _attn_flops_compute)
+
 
 def _patch_tensor_methods():
     torch.matmul = wrapFunc(torch.matmul, _matmul_flops_compute)
     torch.Tensor.matmul = wrapFunc(torch.Tensor.matmul, _matmul_flops_compute)
+    torch.Tensor.__matmul__ = wrapFunc(torch.Tensor.__matmul__, _matmul_flops_compute)
     torch.mm = wrapFunc(torch.mm, _matmul_flops_compute)
     torch.Tensor.mm = wrapFunc(torch.Tensor.mm, _matmul_flops_compute)
     torch.bmm = wrapFunc(torch.bmm, _matmul_flops_compute)
@@ -1139,7 +1154,7 @@ def get_module_duration(module):
     duration = module.__duration__
     if duration == 0:  # e.g. ModuleList
         for m in module.children():
-            duration += m.__duration__
+            duration += get_module_duration(m)
     return duration
 
 
